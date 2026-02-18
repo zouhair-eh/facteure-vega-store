@@ -553,6 +553,37 @@
             font-size: 11px;
             color: var(--muted);
         }
+
+        /* DATE FILTER TABS */
+        .filter-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tab {
+            padding: 7px 16px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            color: var(--muted);
+            transition: all 0.2s;
+        }
+
+        .filter-tab:hover {
+            color: var(--text);
+            border-color: var(--accent);
+        }
+
+        .filter-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
     </style>
 </head>
 
@@ -626,6 +657,15 @@
 
         <!-- TABLE -->
         <div class="card" style="padding:0; overflow:hidden;">
+            <!-- Filter Tabs -->
+            <div style="padding: 16px 16px 0;">
+                <div class="filter-tabs">
+                    <button class="filter-tab active" onclick="setFilter('all')" id="tab-all">📋 Tout</button>
+                    <button class="filter-tab" onclick="setFilter('today')" id="tab-today">📅 Aujourd'hui</button>
+                    <button class="filter-tab" onclick="setFilter('week')" id="tab-week">📆 Semaine</button>
+                    <button class="filter-tab" onclick="setFilter('month')" id="tab-month">🗓️ Mois</button>
+                </div>
+            </div>
             <div id="emptyState" class="empty">
                 <div class="empty-icon">⏳</div>
                 <p>Chargement des données...</p>
@@ -664,6 +704,35 @@
         const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let products = [];
+        let currentFilter = 'all';
+
+        // ===== DATE FILTER =====
+        function setFilter(f) {
+            currentFilter = f;
+            ['all', 'today', 'week', 'month'].forEach(k => {
+                document.getElementById('tab-' + k).classList.toggle('active', k === f);
+            });
+            render();
+        }
+
+        function getFilteredProducts() {
+            if (currentFilter === 'all') return products;
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            return products.filter(p => {
+                if (!p.created_at) return false;
+                const d = new Date(p.created_at);
+                if (currentFilter === 'today') return d >= today;
+                if (currentFilter === 'week') {
+                    const week = new Date(today); week.setDate(today.getDate() - 6);
+                    return d >= week;
+                }
+                if (currentFilter === 'month') {
+                    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                }
+                return true;
+            });
+        }
 
         // ===== INIT =====
         async function init() {
@@ -760,9 +829,12 @@
             const tbody = document.getElementById('tableBody');
             const empty = document.getElementById('emptyState');
             const wrap = document.getElementById('tableWrap');
+            const filtered = getFilteredProducts();
 
-            if (!products.length) {
-                empty.innerHTML = '<div class="empty-icon">📋</div><p>Aucun produit ajouté.<br/>Commencez par remplir le formulaire ci-dessus.</p>';
+            if (!filtered.length) {
+                empty.innerHTML = products.length
+                    ? '<div class="empty-icon">🔍</div><p>Aucun produit pour cette période.</p>'
+                    : '<div class="empty-icon">📋</div><p>Aucun produit ajouté.<br/>Commencez par remplir le formulaire ci-dessus.</p>';
                 empty.style.display = 'block';
                 wrap.style.display = 'none';
                 updateStats(0, 0, 0, 0);
@@ -774,7 +846,7 @@
 
             let totalCost = 0, totalRevenue = 0, totalProfit = 0;
 
-            tbody.innerHTML = products.map((p, i) => {
+            tbody.innerHTML = filtered.map((p, i) => {
                 const cost = p.buy_price * p.quantity;
                 const revenue = p.sell_price * p.quantity;
                 const profit = revenue - cost;
