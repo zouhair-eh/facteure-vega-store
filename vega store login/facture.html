@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VEGA STORE — Calculateur de Bénéfices</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0f0f13;
+            --surface: #1a1a24;
+            --surface2: #22222f;
+            --border: #2e2e40;
+            --accent: #6c63ff;
+            --accent2: #a78bfa;
+            --green: #10b981;
+            --red: #ef4444;
+            --text: #f1f1f5;
+            --muted: #8888aa;
+            --radius: 14px;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px 16px 60px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 14px;
+        }
+
+        header h1 {
+            font-size: clamp(22px, 5vw, 32px);
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff 40%, var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 6px;
+        }
+
+        header p {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        /* STATUS BAR */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .status-bar.loading {
+            background: rgba(108, 99, 255, 0.1);
+            border: 1px solid rgba(108, 99, 255, 0.3);
+            color: var(--accent2);
+        }
+
+        .status-bar.ok {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--green);
+        }
+
+        .status-bar.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--red);
+        }
+
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--accent2);
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 12px;
+            align-items: end;
+        }
+
+        @media (max-width: 640px) {
+            .input-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (min-width: 400px) and (max-width: 640px) {
+            .input-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 11px 14px;
+            color: var(--text);
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+        }
+
+        input::placeholder {
+            color: #555570;
+        }
+
+        input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-add {
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 11px 20px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            white-space: nowrap;
+        }
+
+        .btn-add:hover:not(:disabled) {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn-add:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+
+        .stat-card.purple::before {
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+        }
+
+        .stat-card.green::before {
+            background: linear-gradient(90deg, #10b981, #34d399);
+        }
+
+        .stat-card.blue::before {
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+        }
+
+        .stat-card.orange::before {
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+        }
+
+        .stat-icon {
+            font-size: 22px;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .stat-card.green .stat-value {
+            color: var(--green);
+        }
+
+        .stat-card.purple .stat-value {
+            color: var(--accent2);
+        }
+
+        .stat-card.blue .stat-value {
+            color: #60a5fa;
+        }
+
+        .stat-card.orange .stat-value {
+            color: #fbbf24;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        thead th {
+            background: var(--surface2);
+            padding: 12px 14px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+
+        tbody tr:hover {
+            background: var(--surface2);
+        }
+
+        tbody td {
+            padding: 13px 14px;
+            vertical-align: middle;
+        }
+
+        .product-name {
+            font-weight: 600;
+        }
+
+        .price-cell {
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .profit-pos {
+            color: var(--green);
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .profit-neg {
+            color: var(--red);
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .margin-badge {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .margin-pos {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--green);
+        }
+
+        .margin-neg {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--red);
+        }
+
+        .btn-del {
+            background: rgba(239, 68, 68, 0.1);
+            border: none;
+            color: var(--red);
+            border-radius: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .btn-del:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
+        .empty {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--muted);
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        /* ===== MOBILE TABLE → CARDS ===== */
+        @media (max-width: 700px) {
+            .table-wrap table thead {
+                display: none;
+            }
+
+            .table-wrap table,
+            .table-wrap tbody,
+            .table-wrap tr,
+            .table-wrap td {
+                display: block;
+                width: 100%;
+            }
+
+            .table-wrap tbody tr {
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                margin: 10px 12px;
+                padding: 14px;
+                width: calc(100% - 24px);
+            }
+
+            .table-wrap tbody tr:hover {
+                background: var(--surface2);
+            }
+
+            .table-wrap tbody td {
+                padding: 4px 0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border: none;
+                font-size: 13px;
+            }
+
+            .table-wrap tbody td::before {
+                content: attr(data-label);
+                font-size: 11px;
+                font-weight: 700;
+                color: var(--muted);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                flex-shrink: 0;
+                margin-right: 8px;
+            }
+
+            .table-wrap tbody td:first-child {
+                display: none;
+            }
+
+            .table-wrap tbody td:last-child {
+                justify-content: flex-end;
+                margin-top: 8px;
+            }
+
+            .btn-add,
+            .btn-export,
+            .btn-clear {
+                width: 100%;
+                justify-content: center;
+                text-align: center;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .stat-value {
+                font-size: 18px;
+            }
+
+            body {
+                padding: 16px 12px 80px;
+            }
+
+            .card {
+                padding: 16px;
+            }
+
+            .toast {
+                width: 90%;
+                white-space: normal;
+                text-align: center;
+            }
+        }
+
+        .btn-clear {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--red);
+            border-radius: 10px;
+            padding: 10px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-clear:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-export {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--green);
+            border-radius: 10px;
+            padding: 10px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-export:hover {
+            background: rgba(16, 185, 129, 0.2);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease;
+            z-index: 999;
+            white-space: nowrap;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .date-cell {
+            font-size: 11px;
+            color: var(--muted);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+
+        <!-- HEADER -->
+        <header>
+            <div class="logo-badge">📊 VEGA STORE</div>
+            <h1>Calculateur de Bénéfices</h1>
+            <p>Données sauvegardées dans le cloud — disponibles partout</p>
+        </header>
+
+        <!-- CONNECTION STATUS -->
+        <div class="status-bar loading" id="statusBar">
+            <div class="spinner"></div>
+            <span id="statusText">Connexion à Supabase...</span>
+        </div>
+
+        <!-- SUMMARY STATS -->
+        <div class="summary-grid">
+            <div class="stat-card purple">
+                <div class="stat-icon">📦</div>
+                <div class="stat-label">Produits</div>
+                <div class="stat-value" id="statCount">—</div>
+            </div>
+            <div class="stat-card blue">
+                <div class="stat-icon">💸</div>
+                <div class="stat-label">Coût Total</div>
+                <div class="stat-value" id="statCost">—</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="stat-icon">💵</div>
+                <div class="stat-label">Chiffre d'Affaires</div>
+                <div class="stat-value" id="statRevenue">—</div>
+            </div>
+            <div class="stat-card green">
+                <div class="stat-icon">📈</div>
+                <div class="stat-label">Bénéfice Net</div>
+                <div class="stat-value" id="statProfit">—</div>
+            </div>
+        </div>
+
+        <!-- INPUT FORM -->
+        <div class="card">
+            <div class="card-title">➕ Ajouter un Produit</div>
+            <div class="input-grid">
+                <div class="field">
+                    <label>Nom du Produit</label>
+                    <input type="text" id="inpName" placeholder="ex: T-Shirt Blanc" />
+                </div>
+                <div class="field">
+                    <label>Prix Achat (dh)</label>
+                    <input type="number" id="inpBuy" placeholder="50" min="0" step="0.01" />
+                </div>
+                <div class="field">
+                    <label>Prix Vente (dh)</label>
+                    <input type="number" id="inpSell" placeholder="120" min="0" step="0.01" />
+                </div>
+                <div class="field">
+                    <label>Quantité</label>
+                    <input type="number" id="inpQty" placeholder="10" min="1" step="1" />
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn-add" id="btnAdd" onclick="addProduct()" disabled>➕ Ajouter</button>
+                <button class="btn-export" onclick="exportCSV()">📥 Exporter CSV</button>
+                <button class="btn-clear" onclick="clearAll()">🗑️ Tout effacer</button>
+            </div>
+        </div>
+
+        <!-- TABLE -->
+        <div class="card" style="padding:0; overflow:hidden;">
+            <div id="emptyState" class="empty">
+                <div class="empty-icon">⏳</div>
+                <p>Chargement des données...</p>
+            </div>
+            <div class="table-wrap" id="tableWrap" style="display:none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Produit</th>
+                            <th>Achat</th>
+                            <th>Vente</th>
+                            <th>Qté</th>
+                            <th>Coût Total</th>
+                            <th>Revenu</th>
+                            <th>Bénéfice</th>
+                            <th>Marge</th>
+                            <th>Date</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ===== SUPABASE CONFIG =====
+        const SUPABASE_URL = "https://revokhawrogvxtnoexjy.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_m7wXKp4pPFk2sw_-2n79TQ_YtRrfImB";
+        const { createClient } = supabase;
+        const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let products = [];
+
+        // ===== INIT =====
+        async function init() {
+            setStatus('loading', '⏳ Connexion à Supabase...');
+            try {
+                // Try to create table if not exists via RPC or just load
+                await loadProducts();
+                setStatus('ok', '✅ Connecté à Supabase — données synchronisées');
+                document.getElementById('btnAdd').disabled = false;
+            } catch (e) {
+                setStatus('error', '❌ Erreur de connexion: ' + e.message);
+            }
+        }
+
+        // ===== LOAD =====
+        async function loadProducts() {
+            const { data, error } = await sb
+                .from('profit_entries')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                // Table may not exist yet
+                if (error.code === '42P01') {
+                    setStatus('error', '❌ Table "profit_entries" غير موجودة — شوف التعليمات أسفل');
+                    showTableMissingMsg();
+                    return;
+                }
+                throw error;
+            }
+            products = data || [];
+            render();
+        }
+
+        // ===== ADD =====
+        async function addProduct() {
+            const name = document.getElementById('inpName').value.trim();
+            const buy = parseFloat(document.getElementById('inpBuy').value);
+            const sell = parseFloat(document.getElementById('inpSell').value);
+            const qty = parseInt(document.getElementById('inpQty').value);
+
+            if (!name) return showToast('❌ عافاك دخل اسم المنتج', '#ef4444');
+            if (isNaN(buy) || buy < 0) return showToast('❌ ثمن الشراء غير صحيح', '#ef4444');
+            if (isNaN(sell) || sell < 0) return showToast('❌ ثمن البيع غير صحيح', '#ef4444');
+            if (isNaN(qty) || qty < 1) return showToast('❌ الكمية غير صحيحة', '#ef4444');
+
+            const btn = document.getElementById('btnAdd');
+            btn.disabled = true;
+            btn.textContent = '⏳ ...';
+
+            const profit = (sell - buy) * qty;
+            const margin = sell > 0 ? ((profit / (sell * qty)) * 100).toFixed(1) : 0;
+
+            const { data, error } = await sb.from('profit_entries').insert([{
+                name, buy_price: buy, sell_price: sell, quantity: qty,
+                profit: parseFloat(profit.toFixed(2)),
+                margin: parseFloat(margin)
+            }]).select().single();
+
+            btn.disabled = false;
+            btn.textContent = '➕ Ajouter';
+
+            if (error) return showToast('❌ خطأ: ' + error.message, '#ef4444');
+
+            products.unshift(data);
+            render();
+            clearForm();
+            showToast('✅ تزاد المنتج وتحفظ في السيرفر! 🎉', '#10b981');
+        }
+
+        // ===== DELETE =====
+        async function deleteProduct(id) {
+            const { error } = await sb.from('profit_entries').delete().eq('id', id);
+            if (error) return showToast('❌ خطأ في الحذف', '#ef4444');
+            products = products.filter(p => p.id !== id);
+            render();
+            showToast('🗑️ تمسح المنتج', '#f59e0b');
+        }
+
+        // ===== CLEAR ALL =====
+        async function clearAll() {
+            if (!products.length) return;
+            if (!confirm('واش بغيتي تمسح كلشي من السيرفر؟')) return;
+            const ids = products.map(p => p.id);
+            const { error } = await sb.from('profit_entries').delete().in('id', ids);
+            if (error) return showToast('❌ خطأ في الحذف', '#ef4444');
+            products = [];
+            render();
+            showToast('🗑️ تمسح كلشي', '#ef4444');
+        }
+
+        // ===== RENDER =====
+        function render() {
+            const tbody = document.getElementById('tableBody');
+            const empty = document.getElementById('emptyState');
+            const wrap = document.getElementById('tableWrap');
+
+            if (!products.length) {
+                empty.innerHTML = '<div class="empty-icon">📋</div><p>Aucun produit ajouté.<br/>Commencez par remplir le formulaire ci-dessus.</p>';
+                empty.style.display = 'block';
+                wrap.style.display = 'none';
+                updateStats(0, 0, 0, 0);
+                return;
+            }
+
+            empty.style.display = 'none';
+            wrap.style.display = 'block';
+
+            let totalCost = 0, totalRevenue = 0, totalProfit = 0;
+
+            tbody.innerHTML = products.map((p, i) => {
+                const cost = p.buy_price * p.quantity;
+                const revenue = p.sell_price * p.quantity;
+                const profit = revenue - cost;
+                const margin = p.sell_price > 0 ? ((profit / revenue) * 100).toFixed(1) : 0;
+                totalCost += cost;
+                totalRevenue += revenue;
+                totalProfit += profit;
+
+                const pClass = profit >= 0 ? 'profit-pos' : 'profit-neg';
+                const mClass = profit >= 0 ? 'margin-pos' : 'margin-neg';
+                const sign = profit >= 0 ? '+' : '';
+                const date = p.created_at ? new Date(p.created_at).toLocaleDateString('fr-MA') : '—';
+
+                return `
+        <tr>
+          <td style="color:var(--muted);font-size:12px;">${i + 1}</td>
+          <td class="product-name" data-label="Produit">${esc(p.name)}</td>
+          <td class="price-cell" data-label="Achat">${p.buy_price.toFixed(2)} dh</td>
+          <td class="price-cell" data-label="Vente">${p.sell_price.toFixed(2)} dh</td>
+          <td style="font-weight:600;" data-label="Qté">${p.quantity}</td>
+          <td class="price-cell" data-label="Coût">${cost.toFixed(2)} dh</td>
+          <td class="price-cell" data-label="Revenu">${revenue.toFixed(2)} dh</td>
+          <td class="${pClass}" data-label="Bénéfice">${sign}${profit.toFixed(2)} dh</td>
+          <td data-label="Marge"><span class="margin-badge ${mClass}">${sign}${margin}%</span></td>
+          <td class="date-cell" data-label="Date">${date}</td>
+          <td><button class="btn-del" onclick="deleteProduct(${p.id})">🗑️</button></td>
+        </tr>`;
+            }).join('');
+
+            updateStats(products.length, totalCost, totalRevenue, totalProfit);
+        }
+
+        function updateStats(count, cost, revenue, profit) {
+            document.getElementById('statCount').textContent = count;
+            document.getElementById('statCost').textContent = cost.toFixed(2) + ' dh';
+            document.getElementById('statRevenue').textContent = revenue.toFixed(2) + ' dh';
+            const el = document.getElementById('statProfit');
+            el.textContent = (profit >= 0 ? '+' : '') + profit.toFixed(2) + ' dh';
+            el.style.color = profit >= 0 ? 'var(--green)' : 'var(--red)';
+        }
+
+        // ===== EXPORT CSV =====
+        function exportCSV() {
+            if (!products.length) return showToast('❌ ما كاين والو باش تصدّر', '#ef4444');
+            const rows = [['Produit', 'Prix Achat', 'Prix Vente', 'Quantité', 'Coût Total', 'Revenu', 'Bénéfice', 'Marge%', 'Date']];
+            products.forEach(p => {
+                const cost = p.buy_price * p.quantity;
+                const revenue = p.sell_price * p.quantity;
+                const profit = revenue - cost;
+                const margin = p.sell_price > 0 ? ((profit / revenue) * 100).toFixed(1) : 0;
+                const date = p.created_at ? new Date(p.created_at).toLocaleDateString('fr-MA') : '';
+                rows.push([p.name, p.buy_price, p.sell_price, p.quantity, cost.toFixed(2), revenue.toFixed(2), profit.toFixed(2), margin, date]);
+            });
+            const csv = rows.map(r => r.join(',')).join('\n');
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `vega-benefices-${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('📥 تصدّر بنجاح!', '#10b981');
+        }
+
+        // ===== HELPERS =====
+        function clearForm() {
+            ['inpName', 'inpBuy', 'inpSell', 'inpQty'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('inpName').focus();
+        }
+
+        function setStatus(type, msg) {
+            const bar = document.getElementById('statusBar');
+            bar.className = 'status-bar ' + type;
+            bar.innerHTML = type === 'loading'
+                ? `<div class="spinner"></div><span>${msg}</span>`
+                : `<span>${msg}</span>`;
+        }
+
+        function showTableMissingMsg() {
+            document.getElementById('emptyState').innerHTML = `
+      <div class="empty-icon">⚠️</div>
+      <p style="color:var(--red);font-weight:600;margin-bottom:12px;">Table "profit_entries" غير موجودة في Supabase</p>
+      <p style="font-size:13px;color:var(--muted);">روح لـ Supabase → SQL Editor وشغّل هذا:</p>
+      <pre style="background:var(--surface2);padding:12px;border-radius:8px;font-size:12px;text-align:left;margin-top:10px;overflow-x:auto;">
+CREATE TABLE profit_entries (
+  id          BIGSERIAL PRIMARY KEY,
+  name        TEXT NOT NULL,
+  buy_price   NUMERIC NOT NULL,
+  sell_price  NUMERIC NOT NULL,
+  quantity    INTEGER NOT NULL,
+  profit      NUMERIC,
+  margin      NUMERIC,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE profit_entries ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all" ON profit_entries FOR ALL USING (true) WITH CHECK (true);</pre>
+    `;
+            document.getElementById('emptyState').style.display = 'block';
+            document.getElementById('tableWrap').style.display = 'none';
+        }
+
+        function showToast(msg, color = '#6c63ff') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.style.color = color;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2800);
+        }
+
+        function esc(str) {
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        // Enter to add
+        document.addEventListener('keydown', e => { if (e.key === 'Enter') addProduct(); });
+
+        // START
+        init();
+    </script>
+</body>
+
+</html>
