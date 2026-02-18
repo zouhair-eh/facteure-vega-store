@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/vega store login/facture.html" },
+    { "source": "/(.*)", "destination": "/vega store login/$1" }
+  ]
+}
