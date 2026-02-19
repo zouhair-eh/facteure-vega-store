@@ -1101,6 +1101,47 @@
                 font-size: 12px;
             }
         }
+
+        /* ===== PWA INSTALL BUTTON ===== */
+        .btn-install-pwa {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            padding: 10px 22px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            margin: 14px auto 0;
+            transition: opacity 0.2s, transform 0.2s;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.35);
+            animation: pulse-install 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-install {
+
+            0%,
+            100% {
+                box-shadow: 0 4px 20px rgba(16, 185, 129, 0.35);
+            }
+
+            50% {
+                box-shadow: 0 4px 32px rgba(16, 185, 129, 0.65);
+                transform: scale(1.03);
+            }
+        }
+
+        .btn-install-pwa:hover {
+            opacity: 0.9;
+            transform: scale(1.05) !important;
+        }
+
+        .btn-install-pwa.visible {
+            display: inline-flex;
+        }
     </style>
 </head>
 
@@ -1112,6 +1153,9 @@
             <div class="logo-badge">📊 VEGA STORE</div>
             <h1>Calculateur de Bénéfices</h1>
             <p>Données sauvegardées dans le cloud — disponibles partout</p>
+            <button class="btn-install-pwa" id="btnInstallPWA" onclick="installPWA()">
+                📲 Installer l'application
+            </button>
         </header>
 
         <!-- CONNECTION STATUS -->
@@ -1962,6 +2006,36 @@ CREATE POLICY "allow_all" ON profit_entries FOR ALL USING (true) WITH CHECK (tru
 
         // Lancer les notifications
         if ('Notification' in window) initNotifications();
+
+        // ===== PWA INSTALL =====
+        let deferredInstallPrompt = null;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            // Afficher le bouton "Installer l'application"
+            const btn = document.getElementById('btnInstallPWA');
+            btn.classList.add('visible');
+        });
+
+        async function installPWA() {
+            if (!deferredInstallPrompt) {
+                showToast('ℹ️ Déjà installé ou non supporté sur ce navigateur', '#6c63ff');
+                return;
+            }
+            deferredInstallPrompt.prompt();
+            const { outcome } = await deferredInstallPrompt.userChoice;
+            if (outcome === 'accepted') {
+                showToast('🎉 Application installée avec succès !', '#10b981');
+                document.getElementById('btnInstallPWA').classList.remove('visible');
+            }
+            deferredInstallPrompt = null;
+        }
+
+        window.addEventListener('appinstalled', () => {
+            document.getElementById('btnInstallPWA').classList.remove('visible');
+            showToast('📲 VEGA STORE installée comme application !', '#10b981');
+        });
     </script>
 </body>
 
