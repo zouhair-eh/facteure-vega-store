@@ -9,6 +9,8 @@
         rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#6c63ff">
     <style>
         *,
         *::before,
@@ -982,6 +984,123 @@
             cursor: pointer;
             pointer-events: none;
         }
+
+        /* ===== NOTIF BANNER ===== */
+        .notif-banner {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border-top: 1px solid rgba(108, 99, 255, 0.4);
+            border-radius: 20px 20px 0 0;
+            padding: 20px 24px 28px;
+            z-index: 2000;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        .notif-banner.show {
+            transform: translateY(0);
+        }
+
+        .notif-banner-inner {
+            max-width: 480px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .notif-bell {
+            font-size: 42px;
+            margin-bottom: 10px;
+            animation: bell-ring 1s ease 1s 2;
+        }
+
+        @keyframes bell-ring {
+
+            0%,
+            100% {
+                transform: rotate(0);
+            }
+
+            20% {
+                transform: rotate(-20deg);
+            }
+
+            40% {
+                transform: rotate(20deg);
+            }
+
+            60% {
+                transform: rotate(-10deg);
+            }
+
+            80% {
+                transform: rotate(10deg);
+            }
+        }
+
+        .notif-banner h3 {
+            font-size: 17px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+
+        .notif-banner p {
+            font-size: 13px;
+            color: #8888aa;
+            margin-bottom: 18px;
+            line-height: 1.5;
+        }
+
+        .notif-banner-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-notif-yes {
+            flex: 1;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 13px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-notif-yes:hover {
+            opacity: 0.9;
+        }
+
+        .btn-notif-no {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            border-radius: 12px;
+            padding: 13px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        @media (max-width: 500px) {
+            .notif-banner {
+                padding: 18px 16px 24px;
+            }
+
+            .notif-banner h3 {
+                font-size: 15px;
+            }
+
+            .notif-banner p {
+                font-size: 12px;
+            }
+        }
     </style>
 </head>
 
@@ -1181,6 +1300,19 @@
     </div>
 
     <div class="toast" id="toast"></div>
+
+    <!-- ===== NOTIFICATION BANNER ===== -->
+    <div class="notif-banner" id="notifBanner">
+        <div class="notif-banner-inner">
+            <div class="notif-bell">🔔</div>
+            <h3>Activer les notifications VEGA STORE</h3>
+            <p>Reçois des rappels pour mettre à jour tes bénéfices et ne rate aucune information importante 📊</p>
+            <div class="notif-banner-btns">
+                <button class="btn-notif-yes" onclick="allowNotifications()">🔔 Oui, activer !</button>
+                <button class="btn-notif-no" onclick="dismissNotifBanner()">Plus tard</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         // ===== SUPABASE CONFIG =====
@@ -1732,6 +1864,104 @@ CREATE POLICY "allow_all" ON profit_entries FOR ALL USING (true) WITH CHECK (tru
 
         // START
         init();
+
+        // ===== PUSH NOTIFICATIONS =====
+        const NOTIF_KEY = 'vega_notif_asked';
+        const NOTIF_LAST_KEY = 'vega_notif_last';
+
+        // Messages de rappel rotatifs
+        const NOTIF_MESSAGES = [
+            { title: '📊 VEGA STORE', body: 'N\'oublie pas de saisir tes ventes du jour ! 📅' },
+            { title: '💰 Rappel Bénéfices', body: 'As-tu mis à jour ton calculateur aujourd\'hui ?' },
+            { title: '🛒 VEGA STORE', body: 'Tes chiffres sont prêts à être analysés ! Ouvre l\'app.' },
+            { title: '✅ Bonne journée !', body: 'Pense à noter tes achats et ventes pour suivre ta progression.' },
+            { title: '📈 VEGA STORE', body: 'Regarde ton bénéfice net de la semaine ! 🚀' },
+        ];
+
+        async function initNotifications() {
+            // Si déjà autorisé → enregistrer SW et programmer rappels
+            if (Notification.permission === 'granted') {
+                await registerSW();
+                scheduleLocalReminder();
+                return;
+            }
+            // Si pas encore demandé et pas refusé → montrer le banner après 3s
+            if (Notification.permission !== 'denied' && !localStorage.getItem(NOTIF_KEY)) {
+                setTimeout(() => showNotifBanner(), 3000);
+            }
+        }
+
+        function showNotifBanner() {
+            document.getElementById('notifBanner').classList.add('show');
+        }
+
+        function dismissNotifBanner() {
+            document.getElementById('notifBanner').classList.remove('show');
+            localStorage.setItem(NOTIF_KEY, 'dismissed');
+        }
+
+        async function allowNotifications() {
+            dismissNotifBanner();
+            const perm = await Notification.requestPermission();
+            if (perm === 'granted') {
+                localStorage.setItem(NOTIF_KEY, 'granted');
+                await registerSW();
+                scheduleLocalReminder();
+                // Notif de bienvenue immédiate
+                sendLocalNotif({
+                    title: '🎉 Notifications activées !',
+                    body: 'Tu recevras des rappels VEGA STORE tous les jours. Merci !'
+                });
+                showToast('🔔 Notifications activées avec succès !', '#10b981');
+            } else {
+                showToast('❌ Notifications refusées par le navigateur', '#ef4444');
+            }
+        }
+
+        async function registerSW() {
+            if (!('serviceWorker' in navigator)) return;
+            try {
+                await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+            } catch (e) { /* SW non supporté */ }
+        }
+
+        function sendLocalNotif({ title, body }) {
+            if (Notification.permission !== 'granted') return;
+            navigator.serviceWorker.ready.then(reg => {
+                reg.showNotification(title, {
+                    body,
+                    icon: 'https://em-content.zobj.net/source/twitter/376/chart-increasing_1f4c8.png',
+                    badge: 'https://em-content.zobj.net/source/twitter/376/chart-increasing_1f4c8.png',
+                    vibrate: [200, 100, 200],
+                    tag: 'vega-reminder',
+                    renotify: true
+                });
+            }).catch(() => {
+                // Fallback sans SW
+                new Notification(title, { body });
+            });
+        }
+
+        function scheduleLocalReminder() {
+            const last = parseInt(localStorage.getItem(NOTIF_LAST_KEY) || '0');
+            const now = Date.now();
+            const oneDay = 24 * 60 * 60 * 1000;
+            // Si plus de 20h depuis le dernier rappel → envoyer
+            if (now - last > 20 * 60 * 60 * 1000) {
+                const idx = Math.floor(Math.random() * NOTIF_MESSAGES.length);
+                setTimeout(() => {
+                    sendLocalNotif(NOTIF_MESSAGES[idx]);
+                    localStorage.setItem(NOTIF_LAST_KEY, String(Date.now()));
+                }, 5000); // 5s après chargement
+            }
+            // Programmer le prochain rappel dans 24h
+            const remaining = oneDay - (now - last);
+            const nextIn = Math.max(remaining, oneDay);
+            setTimeout(() => scheduleLocalReminder(), Math.min(nextIn, 2147483647));
+        }
+
+        // Lancer les notifications
+        if ('Notification' in window) initNotifications();
     </script>
 </body>
 

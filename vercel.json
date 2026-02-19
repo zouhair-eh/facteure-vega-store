@@ -1,6 +1,31 @@
 {
   "rewrites": [
-    { "source": "/", "destination": "/vega store login/facture.html" },
-    { "source": "/(.*)", "destination": "/vega store login/$1" }
+    {
+      "source": "/",
+      "destination": "/vega store login/facture.html"
+    },
+    {
+      "source": "/sw.js",
+      "destination": "/sw.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/vega store login/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    }
   ]
 }
