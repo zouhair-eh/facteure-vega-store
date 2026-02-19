@@ -13,6 +13,10 @@
       "destination": "/manifest.json"
     },
     {
+      "source": "/icon.svg",
+      "destination": "/icon.svg"
+    },
+    {
       "source": "/(.*)",
       "destination": "/vega store login/$1"
     }
