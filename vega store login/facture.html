@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
         rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         *,
         *::before,
@@ -466,6 +467,7 @@
             }
 
             .btn-add,
+            .btn-scan,
             .btn-export,
             .btn-clear {
                 width: 100%;
@@ -475,6 +477,50 @@
 
             .actions {
                 flex-direction: column;
+            }
+
+            /* Scanner modal sur mobile */
+            .scan-modal {
+                padding: 16px;
+                border-radius: 16px;
+                max-height: 98vh;
+            }
+
+            .scan-title {
+                font-size: 15px;
+            }
+
+            .instructions-box {
+                font-size: 11px;
+                padding: 10px;
+            }
+
+            .camera-container {
+                aspect-ratio: 3/4;
+            }
+
+            /* champs prix en colonne sur petit écran */
+            #parsedFields>div:last-child {
+                grid-template-columns: 1fr !important;
+            }
+
+            .btn-capture,
+            .btn-retake {
+                padding: 14px;
+                font-size: 16px;
+            }
+
+            .btn-confirm-scan {
+                padding: 15px;
+                font-size: 16px;
+            }
+
+            .no-camera-zone {
+                padding: 28px 16px;
+            }
+
+            .no-camera-zone .nc-icon {
+                font-size: 40px;
             }
 
             .stat-value {
@@ -584,6 +630,358 @@
             border-color: var(--accent);
             color: #fff;
         }
+
+        /* ===== SCANNER MODAL ===== */
+        .btn-scan {
+            background: linear-gradient(135deg, #f59e0b, #f97316);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 11px 20px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-scan:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .scan-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .scan-overlay.open {
+            display: flex;
+        }
+
+        .scan-modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 24px;
+            width: 100%;
+            max-width: 520px;
+            max-height: 95vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .scan-title {
+            font-size: 17px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fbbf24;
+        }
+
+        .scan-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #fff;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .scan-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .camera-container {
+            position: relative;
+            width: 100%;
+            border-radius: 14px;
+            overflow: hidden;
+            background: #000;
+            aspect-ratio: 4/3;
+            margin-bottom: 14px;
+        }
+
+        #cameraFeed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .camera-guide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .camera-guide-box {
+            border: 2px dashed rgba(251, 191, 36, 0.7);
+            border-radius: 10px;
+            width: 80%;
+            height: 75%;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+        }
+
+        .camera-guide-label {
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            font-weight: 700;
+            color: #fbbf24;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 3px 10px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+
+        #canvasCapture {
+            display: none;
+        }
+
+        #capturedPreview {
+            width: 100%;
+            border-radius: 12px;
+            margin-bottom: 14px;
+            display: none;
+            border: 2px solid var(--accent);
+        }
+
+        .scan-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .btn-capture {
+            flex: 1;
+            background: linear-gradient(135deg, #f59e0b, #f97316);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-capture:hover {
+            opacity: 0.9;
+        }
+
+        .btn-capture:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-retake {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 10px;
+            padding: 12px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: none;
+        }
+
+        .btn-upload-img {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .ocr-result-box {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 14px;
+            display: none;
+        }
+
+        .ocr-result-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .ocr-result-text {
+            font-size: 13px;
+            color: var(--text);
+            line-height: 1.6;
+            white-space: pre-wrap;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .parsed-fields {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .parsed-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .parsed-field label {
+            font-size: 11px;
+        }
+
+        .parsed-field input {
+            background: var(--surface2);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 9px 12px;
+            color: var(--text);
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            width: 100%;
+        }
+
+        .btn-confirm-scan {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 13px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            display: none;
+            transition: opacity 0.2s;
+        }
+
+        .btn-confirm-scan:hover {
+            opacity: 0.9;
+        }
+
+        .scan-progress {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: var(--accent2);
+            font-weight: 600;
+        }
+
+        .scan-progress-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--surface2);
+            border-radius: 10px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .scan-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .instructions-box {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.25);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 14px;
+            font-size: 12px;
+            color: #fbbf24;
+            line-height: 1.7;
+        }
+
+        /* Zone upload quand pas de caméra */
+        .no-camera-zone {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            background: var(--surface2);
+            border: 2px dashed var(--border);
+            border-radius: 14px;
+            padding: 36px 20px;
+            margin-bottom: 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .no-camera-zone:hover {
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.06);
+        }
+
+        .no-camera-zone .nc-icon {
+            font-size: 48px;
+        }
+
+        .no-camera-zone .nc-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .no-camera-zone .nc-sub {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .no-camera-zone .btn-nc-upload {
+            background: linear-gradient(135deg, #f59e0b, #f97316);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 28px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -650,8 +1048,96 @@
             </div>
             <div class="actions">
                 <button class="btn-add" id="btnAdd" onclick="addProduct()" disabled>➕ Ajouter</button>
+                <button class="btn-scan" onclick="openScanner()">📷 Scanner Cahier</button>
                 <button class="btn-export" onclick="exportCSV()">📥 Exporter CSV</button>
                 <button class="btn-clear" onclick="clearAll()">🗑️ Tout effacer</button>
+            </div>
+        </div>
+
+        <!-- ===== SCANNER MODAL ===== -->
+        <div class="scan-overlay" id="scanOverlay">
+            <div class="scan-modal">
+                <button class="scan-close" onclick="closeScanner()">✕</button>
+                <div class="scan-title">📷 Scanner le Cahier</div>
+
+                <div class="instructions-box">
+                    📋 <strong>Comment utiliser :</strong><br>
+                    1. Ouvre ton cahier à la bonne page<br>
+                    2. Place le texte dans le cadre jaune<br>
+                    3. Appuie sur 📸 Capturer<br>
+                    4. L'IA lit le texte et remplit les champs<br>
+                    5. Vérifie et confirme l'ajout
+                </div>
+
+                <!-- CAMERA VIEW -->
+                <div class="camera-container" id="cameraContainer">
+                    <video id="cameraFeed" autoplay playsinline muted></video>
+                    <div class="camera-guide">
+                        <div class="camera-guide-box"></div>
+                        <div class="camera-guide-label">📖 Place le texte ici</div>
+                    </div>
+                </div>
+
+                <!-- ZONE SANS CAMÉRA -->
+                <label class="no-camera-zone" id="noCameraZone">
+                    <div class="nc-icon">🖼️</div>
+                    <div class="nc-title">Pas de caméra détectée</div>
+                    <div class="nc-sub">Clique pour choisir une photo de ton cahier depuis le PC ou téléphone</div>
+                    <div class="btn-nc-upload">📂 Choisir une image</div>
+                    <input type="file" accept="image/*" style="display:none;" onchange="handleImageUpload(event)">
+                </label>
+
+                <canvas id="canvasCapture"></canvas>
+                <img id="capturedPreview" alt="Photo capturée" />
+
+                <!-- SCAN PROGRESS -->
+                <div class="scan-progress" id="scanProgress">
+                    <div id="scanProgressText">🔍 Lecture du texte en cours...</div>
+                    <div class="scan-progress-bar">
+                        <div class="scan-progress-fill" id="scanProgressFill"></div>
+                    </div>
+                </div>
+
+                <!-- OCR RESULT -->
+                <div class="ocr-result-box" id="ocrResultBox">
+                    <div class="ocr-result-label">📄 Texte détecté</div>
+                    <div class="ocr-result-text" id="ocrResultText"></div>
+                </div>
+
+                <!-- PARSED FIELDS -->
+                <div class="parsed-fields" id="parsedFields">
+                    <div class="parsed-field">
+                        <label>Nom du Produit</label>
+                        <input type="text" id="scanName" placeholder="Détecté automatiquement..." />
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+                        <div class="parsed-field">
+                            <label>Prix Achat (dh)</label>
+                            <input type="number" id="scanBuy" placeholder="0" min="0" step="0.01" />
+                        </div>
+                        <div class="parsed-field">
+                            <label>Prix Vente (dh)</label>
+                            <input type="number" id="scanSell" placeholder="0" min="0" step="0.01" />
+                        </div>
+                        <div class="parsed-field">
+                            <label>Quantité</label>
+                            <input type="number" id="scanQty" placeholder="1" min="1" step="1" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ACTIONS -->
+                <div class="scan-actions">
+                    <button class="btn-capture" id="btnCapture" onclick="capturePhoto()">📸 Capturer</button>
+                    <button class="btn-retake" id="btnRetake" onclick="retakePhoto()">🔄 Reprendre</button>
+                    <label class="btn-upload-img" title="Importer une image depuis la galerie">
+                        🖼️ Galerie
+                        <input type="file" accept="image/*" style="display:none;" onchange="handleImageUpload(event)">
+                    </label>
+                </div>
+
+                <button class="btn-confirm-scan" id="btnConfirmScan" onclick="confirmScan()">✅ Transférer vers le
+                    Formulaire</button>
             </div>
         </div>
 
@@ -1022,6 +1508,227 @@ CREATE POLICY "allow_all" ON profit_entries FOR ALL USING (true) WITH CHECK (tru
 
         // Enter to add
         document.addEventListener('keydown', e => { if (e.key === 'Enter') addProduct(); });
+
+        // ===== SCANNER CAMERA =====
+        let cameraStream = null;
+
+        async function openScanner() {
+            document.getElementById('scanOverlay').classList.add('open');
+            document.body.style.overflow = 'hidden';
+            await startCamera();
+        }
+
+        function closeScanner() {
+            stopCamera();
+            document.getElementById('scanOverlay').classList.remove('open');
+            document.body.style.overflow = '';
+            resetScannerUI();
+        }
+
+        async function startCamera() {
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: 'environment' }, // caméra arrière sur mobile
+                        width: { ideal: 1280 },
+                        height: { ideal: 960 }
+                    }
+                };
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const video = document.getElementById('cameraFeed');
+                video.srcObject = cameraStream;
+                document.getElementById('cameraContainer').style.display = 'block';
+                document.getElementById('capturedPreview').style.display = 'none';
+                document.getElementById('btnCapture').style.display = 'block';
+                document.getElementById('btnCapture').disabled = false;
+            } catch (err) {
+                // Pas de caméra → afficher la grande zone d'upload
+                document.getElementById('cameraContainer').style.display = 'none';
+                document.getElementById('noCameraZone').style.display = 'flex';
+                document.getElementById('btnCapture').style.display = 'none';
+            }
+        }
+
+        function stopCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(t => t.stop());
+                cameraStream = null;
+            }
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('cameraFeed');
+            const canvas = document.getElementById('canvasCapture');
+            canvas.width = video.videoWidth || 1280;
+            canvas.height = video.videoHeight || 960;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+            showCapturedImage(dataUrl);
+            stopCamera();
+            runOCR(dataUrl);
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                stopCamera();
+                showCapturedImage(e.target.result);
+                runOCR(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function showCapturedImage(dataUrl) {
+            document.getElementById('cameraContainer').style.display = 'none';
+            const preview = document.getElementById('capturedPreview');
+            preview.src = dataUrl;
+            preview.style.display = 'block';
+            document.getElementById('btnCapture').style.display = 'none';
+            document.getElementById('btnRetake').style.display = 'block';
+        }
+
+        function retakePhoto() {
+            resetScannerUI();
+            startCamera();
+        }
+
+        function resetScannerUI() {
+            document.getElementById('ocrResultBox').style.display = 'none';
+            document.getElementById('parsedFields').style.display = 'none';
+            document.getElementById('btnConfirmScan').style.display = 'none';
+            document.getElementById('scanProgress').style.display = 'none';
+            document.getElementById('btnRetake').style.display = 'none';
+            document.getElementById('capturedPreview').style.display = 'none';
+            document.getElementById('noCameraZone').style.display = 'none';
+            document.getElementById('capturedPreview').src = '';
+            document.getElementById('btnCapture').style.display = 'block';
+            document.getElementById('btnCapture').disabled = false;
+            document.getElementById('scanProgressFill').style.width = '0%';
+        }
+
+        async function runOCR(imageData) {
+            document.getElementById('scanProgress').style.display = 'block';
+            document.getElementById('btnCapture').disabled = true;
+
+            try {
+                const result = await Tesseract.recognize(imageData, 'fra+ara', {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            const pct = Math.round(m.progress * 100);
+                            document.getElementById('scanProgressFill').style.width = pct + '%';
+                            document.getElementById('scanProgressText').textContent = `🔍 Lecture... ${pct}%`;
+                        }
+                    }
+                });
+
+                const rawText = result.data.text.trim();
+                document.getElementById('scanProgress').style.display = 'none';
+
+                if (!rawText) {
+                    showToast('⚠️ Aucun texte détecté — réessayez', '#f59e0b');
+                    return;
+                }
+
+                // Afficher texte brut
+                document.getElementById('ocrResultText').textContent = rawText;
+                document.getElementById('ocrResultBox').style.display = 'block';
+
+                // Parser le texte
+                const parsed = parseOCRText(rawText);
+                document.getElementById('scanName').value = parsed.name || '';
+                document.getElementById('scanBuy').value = parsed.buy || '';
+                document.getElementById('scanSell').value = parsed.sell || '';
+                document.getElementById('scanQty').value = parsed.qty || 1;
+
+                document.getElementById('parsedFields').style.display = 'flex';
+                document.getElementById('btnConfirmScan').style.display = 'block';
+
+            } catch (err) {
+                document.getElementById('scanProgress').style.display = 'none';
+                showToast('❌ Erreur OCR: ' + err.message, '#ef4444');
+            }
+        }
+
+        // ===== PARSE OCR TEXT → Extracte les champs =====
+        function parseOCRText(text) {
+            const lines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.length > 1);
+            const result = { name: '', buy: '', sell: '', qty: 1 };
+
+            // Patterns pour détecter les valeurs numériques
+            const numPattern = /[\d]+[.,]?[\d]*/g;
+
+            // Chercher nom (première ligne non numérique)
+            for (const line of lines) {
+                if (!/^[\d.,\s]+$/.test(line) && line.length > 1) {
+                    result.name = line.replace(/[^a-zA-Z\u0600-\u06FF\s\-]/g, ' ').trim().replace(/\s+/g, ' ');
+                    if (result.name.length > 1) break;
+                }
+            }
+
+            // Chercher les nombres dans tout le texte
+            const allNums = [];
+            for (const line of lines) {
+                const nums = line.match(numPattern);
+                if (nums) {
+                    nums.forEach(n => {
+                        const val = parseFloat(n.replace(',', '.'));
+                        if (!isNaN(val) && val > 0) allNums.push(val);
+                    });
+                }
+            }
+
+            // Patterns spécifiques : chercher mots-clés
+            const keyPatterns = [
+                { keys: ['achat', 'buy', 'ach', 'prix a', 'p.a', 'pa:', 'coût', 'cout'], field: 'buy' },
+                { keys: ['vente', 'sell', 'ven', 'prix v', 'p.v', 'pv:', 'vend'], field: 'sell' },
+                { keys: ['qte', 'qty', 'quantite', 'quantité', 'nb', 'nbre', 'qté', 'pcs', 'pieces'], field: 'qty' }
+            ];
+
+            for (const line of lines) {
+                const lowerLine = line.toLowerCase();
+                for (const { keys, field } of keyPatterns) {
+                    if (keys.some(k => lowerLine.includes(k))) {
+                        const nums = line.match(numPattern);
+                        if (nums && nums.length > 0) {
+                            const val = parseFloat(nums[nums.length - 1].replace(',', '.'));
+                            if (!isNaN(val) && val > 0) result[field] = val;
+                        }
+                    }
+                }
+            }
+
+            // Si pas trouvé via mots-clés, assigner les 3 premiers nombres
+            if (!result.buy && allNums[0]) result.buy = allNums[0];
+            if (!result.sell && allNums[1]) result.sell = allNums[1];
+            if (!result.qty && allNums[2] && allNums[2] <= 9999) result.qty = Math.round(allNums[2]);
+
+            return result;
+        }
+
+        function confirmScan() {
+            const name = document.getElementById('scanName').value.trim();
+            const buy = document.getElementById('scanBuy').value;
+            const sell = document.getElementById('scanSell').value;
+            const qty = document.getElementById('scanQty').value;
+
+            if (!name) {
+                showToast('⚠️ Remplis le nom du produit', '#f59e0b');
+                document.getElementById('scanName').focus();
+                return;
+            }
+
+            // Transférer vers le formulaire principal
+            document.getElementById('inpName').value = name;
+            document.getElementById('inpBuy').value = buy || '';
+            document.getElementById('inpSell').value = sell || '';
+            document.getElementById('inpQty').value = qty || 1;
+
+            closeScanner();
+            showToast('✅ Données transférées ! Vérifie et appuie sur Ajouter.', '#10b981');
+            document.getElementById('inpName').focus();
+        }
 
         // START
         init();
